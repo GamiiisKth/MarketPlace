@@ -12,6 +12,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Created by joshuaPro on 2015-11-25.
@@ -35,20 +37,16 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
 
     @Override
     public synchronized void registerMarketClient(String name) throws RemoteException {
-        ClientImpl account= (ClientImpl)clientTable.get(name);
-        if(account!=null){
-            System.out.print("Account ["+name+"] exists");
-            try {
-                throw new RejectedException(  " Account for: " + name + " already exists: " + account);
-            } catch (RejectedException e) {
-                e.printStackTrace();
-            }
-            account = new ClientImpl(name);
-            clientTable.put(name,account);
-            System.out.println(  " Account: " + account
-                    + " has been created for " + name);
-        }
+       ClientImpl acc= new ClientImpl(name);
+        clientTable.put(name,acc);
 
+
+
+    }
+
+    @Override
+    public ClientInterface getRegisteredAcc(String name) throws RemoteException {
+        return clientTable.get(name);
     }
 
     @Override
@@ -114,14 +112,10 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
     }
 
     @Override
-    public synchronized String[] getListOfItemsInMarket() throws RemoteException {
-        int listLenght=itemsList.size();
-        String [] a= new String[listLenght];
-        for (int i=0; i< listLenght;i++){
-            a[i]=   itemsList.get(i).toString();
-        }
-        return a;
+    public synchronized ArrayList getListOfItemsInMarket() throws RemoteException {
+        return itemsList;
     }
+
 
     @Override
     public String[] listAccounts() throws RemoteException {

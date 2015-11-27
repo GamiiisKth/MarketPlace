@@ -36,11 +36,11 @@ public class ClientMarket extends UnicastRemoteObject  {
 
         try {
             try {
-                LocateRegistry.getRegistry(1099).list();
+                LocateRegistry.getRegistry(6767).list();
             } catch (RemoteException e) {
-                LocateRegistry.createRegistry(1099);
+                LocateRegistry.createRegistry(6767);
             }
-            marketObj = (MarketInterface) Naming.lookup("rmi://localhost:1099/blocket");
+            marketObj = (MarketInterface) Naming.lookup("rmi://localhost:6767/blocket");
         } catch (Exception e) {
             System.out.println("The runtime failed: " + e.getMessage());
             System.exit(0);
@@ -57,8 +57,10 @@ public class ClientMarket extends UnicastRemoteObject  {
         while (true) {
             System.out.print(clientName + "@" + "Blocket" + ">");
             try {
+
                 String userInput = consolIn.readLine();
                 execute(parser(userInput));
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -100,7 +102,8 @@ public class ClientMarket extends UnicastRemoteObject  {
                     break;
                 case 4:
                     price = Float.parseFloat(tokenizer.nextToken());
-                    item = makeItem(userName, itemName, price);
+                    item =new Item( itemName,  price, userName) ;
+                    System.out.println(item);
                     break;
                 default:
                     System.out.println("Illegal command1");
@@ -121,7 +124,7 @@ public class ClientMarket extends UnicastRemoteObject  {
             case list:
                 try {
                     for (String a: marketObj.listAccounts()){
-                        System.out.println(a.toString());
+                        System.out.println(a);
                 }
                 }catch (NullPointerException e){
                     e.printStackTrace();
@@ -150,7 +153,9 @@ public class ClientMarket extends UnicastRemoteObject  {
                 clientName = username;
 
                 System.out.println("we are here");
-                marketObj.registerMarketClient(username);
+               marketObj.registerMarketClient(username);
+
+
                 return;
             case unRegisterAccount:
 
@@ -159,24 +164,16 @@ public class ClientMarket extends UnicastRemoteObject  {
                 return;
         }
         // all further require a client reference
-        if (clientInterface == null) {
-            System.out.println("No account for " + username);
-            return;
-        }
         switch (command2.getCommandName()) {
             case listOfIem:
-                try {
-                    marketObj.getListOfItemsInMarket();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return;
-                }
+
+                 for(Item i:marketObj.getListOfItemsInMarket() ){
+                     System.out.println(i);
+                 }
             case newItem:
                 marketObj.addItemToSell(item);
-
-            default:
-                System.out.println("Illegal command");
                 return;
+            default:System.out.println("Illegal");
 
         }
     }
@@ -201,11 +198,9 @@ public class ClientMarket extends UnicastRemoteObject  {
         }
     }
 
-    private Item makeItem(String owner, String itemName, float price) {
-        if (clientInterface == null) {
-            return null;
-        }
-        return new Item(itemName, price, owner, clientInterface);
+    private Item makeItem(String owner, String itemName, float price) throws RemoteException {
+
+        return new Item(itemName, price, owner);
     }
 
     public static void main(String[] args)  {

@@ -159,14 +159,6 @@ public class Client {
         }
 
         // all further commands require a Account reference
-        Account acc = bankobj.getAccount(userName);
-        if (acc == null) {
-            System.out.println("No account for " + userName);
-            return;
-        } else {
-            account = acc;
-            clientname = userName;
-        }
 
         switch (command.getCommandName()) {
             case getAccount:

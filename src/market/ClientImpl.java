@@ -2,6 +2,7 @@ package market;
 
 import java.rmi.RemoteException;
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 /**
@@ -48,4 +49,5 @@ public class ClientImpl implements ClientInterface  {
 
         System.out.println(item.getName() + "," + String.valueOf(item.getPrice()) + "," + item.getOwner());
     }
+
 }

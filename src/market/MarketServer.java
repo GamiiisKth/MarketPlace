@@ -15,11 +15,11 @@ public class MarketServer  {
             MarketInterface markOnj = new MarketImpl();
             // Register the newly created object at rmiregistry.
             try {
-                LocateRegistry.getRegistry(1099).list();
+                LocateRegistry.getRegistry(6767).list();
             } catch (RemoteException e) {
-                LocateRegistry.createRegistry(1099);
+                LocateRegistry.createRegistry(6767);
             }
-            Naming.rebind("rmi://localhost:1099/blocket", markOnj);
+            Naming.rebind("rmi://localhost:6767/blocket", markOnj);
             System.out.println(markOnj + " is ready.");
         } catch (Exception e) {
             e.printStackTrace();
