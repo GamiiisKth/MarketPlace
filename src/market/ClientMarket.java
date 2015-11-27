@@ -20,7 +20,6 @@ import java.util.StringTokenizer;
 public class ClientMarket extends UnicastRemoteObject  {
 
     Bank bankobjc;
-    ClientInterface clientInterface;
     MarketInterface marketObj;
     private String clientName;
     private Item item;
@@ -35,12 +34,9 @@ public class ClientMarket extends UnicastRemoteObject  {
 
 
         try {
-            try {
-                LocateRegistry.getRegistry(6767).list();
-            } catch (RemoteException e) {
-                LocateRegistry.createRegistry(6767);
-            }
+
             marketObj = (MarketInterface) Naming.lookup("rmi://localhost:6767/blocket");
+            bankobjc=(Bank)Naming.lookup("rmi://localhost:7777/Nordea");
         } catch (Exception e) {
             System.out.println("The runtime failed: " + e.getMessage());
             System.exit(0);

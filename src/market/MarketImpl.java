@@ -27,10 +27,12 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
     public MarketImpl( ) throws RemoteException, MalformedURLException, NotBoundException {
         super();
         try {
-            LocateRegistry.getRegistry(7777).list();
+            LocateRegistry.getRegistry(9090).list();
         } catch (RemoteException e) {
-            LocateRegistry.createRegistry(7777);
+            LocateRegistry.createRegistry(9090);
         }
+        MarketImpl marketObj= new MarketImpl();
+        LocateRegistry.getRegistry().rebind("//:9090/Market",marketObj);
         bankInterface=(Bank) Naming.lookup("rmi://localhost:7777/Nordea");
     }
 

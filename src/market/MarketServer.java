@@ -19,21 +19,11 @@ public class MarketServer  {
             } catch (RemoteException e) {
                 LocateRegistry.createRegistry(6767);
             }
-            Naming.rebind("rmi://localhost:6767/blocket", markOnj);
             System.out.println(markOnj + " is ready.");
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void main(String[] args) {
-
-        if (args.length > 1 || (args.length > 0 && args[0].equalsIgnoreCase("-h"))) {
-            System.out.println(USAGE);
-            System.exit(1);
-        }
-
-        new MarketServer();
-    }
 
 }
