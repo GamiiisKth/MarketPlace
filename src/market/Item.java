@@ -6,7 +6,7 @@ import java.util.UUID;
 /**
  * Created by joshuaPro on 2015-11-25.
  */
-public class Item {
+public class Item implements Serializable {
 
     private String name;
     private float price;
@@ -45,7 +45,7 @@ public class Item {
 
     @Override
     public String toString() {
-        return String.format("[ ("+ getName()+"), " + getPrice()+ ")]");
+        return String.format("[ ("+ getName()+"), (" + getPrice()+ ")]");
     }
 }
 

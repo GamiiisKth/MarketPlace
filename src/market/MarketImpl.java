@@ -22,26 +22,25 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
     private Map<String,ClientInterface>clientTable=new HashMap<>();
     private ArrayList<Item> itemsList=new ArrayList<>();
     private ArrayList<Item> wishList=new ArrayList<>();
-    private Bank bankInterface;
-
+    private static Bank bankInterface;
+    private String owner;
+    private float price;
     public MarketImpl( ) throws RemoteException, MalformedURLException, NotBoundException {
         super();
-        try {
-            LocateRegistry.getRegistry(9090).list();
-        } catch (RemoteException e) {
-            LocateRegistry.createRegistry(9090);
-        }
-        MarketImpl marketObj= new MarketImpl();
-        LocateRegistry.getRegistry().rebind("//:9090/Market",marketObj);
-        bankInterface=(Bank) Naming.lookup("rmi://localhost:7777/Nordea");
     }
 
 
     @Override
-    public synchronized void registerMarketClient(String name) throws RemoteException {
-       ClientImpl acc= new ClientImpl(name);
-        clientTable.put(name,acc);
-
+    public synchronized void registerMarketClient(String name,ClientInterface clientInterface) throws RemoteException, RejectedException {
+        if((clientTable.containsKey(name))){
+            throw new RejectedException("Rejected: market.marketImpl: " + "blocket"
+                    + " Account for: " + name + " already exists:");
+        }else if (bankInterface.getAccount(name)!=null){
+            throw new RejectedException("Rejected: market.marketImpl: " + "bank"
+                    + " Account for: " + name + " already exists:");
+        }else {
+            clientTable.put(name,clientInterface);
+        }
 
 
     }
@@ -68,11 +67,13 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
     }
 
     @Override
-    public synchronized void addItemToSell(Item item) throws RemoteException {
+    public synchronized String addItemToSell(String itemName,float price,String owner) throws RemoteException {
+        Item item= new Item(itemName,price,owner);
         itemsList.add(item);
-        System.out.println("your item has been added"+ item.getName());
+        checkWishList(itemName,price,owner);
+        return  "your item has been added "+ item.getName();
 
-        checkWishList(item);
+
     }
 
     @Override
@@ -81,38 +82,50 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
     }
 
     @Override
-    public synchronized void wishItemToBuy(String wisher, Item item) throws RemoteException {
-        if(!checkMarket(wisher,item)){
-            wishList.add(item);
+    public synchronized void wishItemToBuy(String item,float price,String wisher) throws RemoteException {
+        if(!checkMarket(wisher,item,price)){
+            Item i= new Item(item,price,wisher);
+            wishList.add(i);
         }
     }
 
     @Override
-    public void buyItem(Item item, String buyer) throws RemoteException {
-        Account buyerAcc= bankInterface.getAccount(buyer);
-        if(buyerAcc !=null) {
+    public void buyItem(String itemName, String buyer) throws RemoteException {
+        Account buyerAcc = bankInterface.getAccount(buyer);
+        if (buyerAcc != null) {
 
-            Account sellerAcc = bankInterface.getAccount(item.getOwner());
-            if (sellerAcc !=null) {
-                try {
-                    buyerAcc.withdraw(item.getPrice());
-                    sellerAcc.deposit(item.getPrice());
+            for (Item i : itemsList) {
+                if (i.getName().equalsIgnoreCase(itemName)) {
+                    owner = i.getOwner();
+                    price = i.getPrice();
+                    break;
 
-                    clientTable.get(item.getOwner()).notifySold(item);
-                    removeItem(itemsList, item.getName());
-
-                } catch (RejectedException e) {
-                    e.printStackTrace();
-
-                    clientTable.get(buyer).lackMoney();
                 }
             }
-            System.out.println(item.getOwner()+" please create a bank account so buyer can pay money");
+            Account sellerAcc = bankInterface.getAccount(owner);
+            if (sellerAcc != null) {
+                try {
+                    buyerAcc.withdraw(price);
+                    sellerAcc.deposit(price);
+
+                    clientTable.get(owner).notifySold(itemName);
+                    clientTable.get(buyer).reciveMsg("Coungratulation for: "+itemName);
+                    removeItem(itemsList, itemName);
+
+                } catch (RejectedException e) {
+
+                   // clientTable.get(buyer).lackMoney();
+                    clientTable.get(buyer).reciveMsg(e.toString());
+                }
+            } else {
+                clientTable.get(owner).reciveMsg(" please create a bank account so buyer can pay money");
+            }
+
+
+        } else{
+            clientTable.get(buyer).reciveMsg("please create a bank account so buyer can pay money");
         }
-        System.out.println(buyer+" please create a bank account and deposit it");
-
     }
-
     @Override
     public synchronized ArrayList getListOfItemsInMarket() throws RemoteException {
         return itemsList;
@@ -124,15 +137,17 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
         return clientTable.keySet().toArray(new String[1]);
     }
 
-    private void checkWishList(Item item) throws RemoteException{
-        int i= wishList.size();
-        System.out.println(i);
-        for (int j=0;  j< i; j++){
-            if(item.getName().equalsIgnoreCase(wishList.get(j).getName())){
-                if(item.getPrice() <= wishList.get(j).getPrice()){
-                    wishList.get(i).getOwnerInterface().notifyWish(item);
+    private void checkWishList(String item,float price,String owner) throws RemoteException{
+
+
+        for (Item j : wishList){
+            if(item.equalsIgnoreCase(j.getName())){
+                if(price <= j.getPrice()){
+                    // TODO add ro notifywish nameOfItem and the price
+                    clientTable.get(j.getOwner()).notifyWish(item,price);
+                    clientTable.get(owner).reciveMsg("Some one is intressted in your advertisement:" +item);
                     wishList.remove(j);
-                    --j;
+                    break;
                 }
             }
         }
@@ -147,13 +162,15 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
             }
         }
     }
-    public synchronized boolean checkMarket(String wisher,Item item) throws RemoteException {
+    public synchronized boolean checkMarket(String wisher,String itemName,float price) throws RemoteException {
         boolean check=false;
-        System.out.println("size of list");
-        for (int i=0; i< itemsList.size(); i++){
-            if(itemsList.get(i).getName().equals(item.getName())){
-                if(itemsList.get(i).getPrice() <= item.getPrice()){
-                    clientTable.get(wisher).notifyWish(item);
+
+        for (Item i: itemsList){
+            if(i.getName().equalsIgnoreCase(itemName)){
+                if(i.getPrice() <= price){
+                    //TODO notifyWish must be done with itemName and price
+                    clientTable.get(wisher).notifyWish(itemName,price);
+                    clientTable.get(i.getOwner()).reciveMsg("Some one is intressted in your advertisement: "+itemName);
                     check=true;
                 }
             }
@@ -161,5 +178,14 @@ public class MarketImpl extends UnicastRemoteObject implements MarketInterface {
         return check;
     }
 
-
+    public static void main(String [] arg) throws RemoteException, NotBoundException, MalformedURLException {
+        try {
+            LocateRegistry.getRegistry(9090).list();
+        } catch (RemoteException e) {
+            LocateRegistry.createRegistry(9090);
+        }
+        MarketImpl marketObj= new MarketImpl();
+        Naming.rebind("//:9090/Market",marketObj);
+        bankInterface=(Bank) Naming.lookup("rmi://localhost:7777/Nordea");
+    }
 }

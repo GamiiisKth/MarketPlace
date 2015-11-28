@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @SuppressWarnings("serial")
-public class BankImpl extends UnicastRemoteObject implements Bank {
+public class  BankImpl extends UnicastRemoteObject implements Bank {
     private String bankName;
     private Map<String, Account> accounts = new HashMap<>();
 

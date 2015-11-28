@@ -1,8 +1,9 @@
 package market;
 
 
+import bankrmi.Account;
 import bankrmi.Bank;
-
+import bankrmi.RejectedException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,30 +13,33 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.text.DateFormat;
+import java.text.Format;
+import java.util.Date;
 import java.util.StringTokenizer;
 
 /**
  * Created by joshuaPro on 2015-11-25.
  */
-public class ClientMarket extends UnicastRemoteObject  {
+public class ClientMarket extends UnicastRemoteObject   implements  ClientInterface{
 
     Bank bankobjc;
     MarketInterface marketObj;
     private String clientName;
-    private Item item;
+    private String itemName=null;
+    private float price=0;
+    Account account;
+    private String owner=null;
 
     static enum CommandName1 {
-        registerAccount, unRegisterAccount, wish, buy, listOfIem, help, quit, newItem,list;
-    }
-
-    ;
+        registerAccount, unRegisterAccount, wish, buy, listOfIem, help, quit, newItem,list
+        ,balance,deposit;
+    };
 
     public ClientMarket() throws RemoteException, MalformedURLException, NotBoundException {
-
-
         try {
 
-            marketObj = (MarketInterface) Naming.lookup("rmi://localhost:6767/blocket");
+            marketObj = (MarketInterface) Naming.lookup("rmi://localhost:9090/Market");
             bankobjc=(Bank)Naming.lookup("rmi://localhost:7777/Nordea");
         } catch (Exception e) {
             System.out.println("The runtime failed: " + e.getMessage());
@@ -44,9 +48,7 @@ public class ClientMarket extends UnicastRemoteObject  {
         System.out.println("Connected to market: " + "blocket" );
     }
 
-
     // denna metoden anropas i main metoden
-
     public void run() {
 
         BufferedReader consolIn = new BufferedReader(new InputStreamReader(System.in));
@@ -72,9 +74,7 @@ public class ClientMarket extends UnicastRemoteObject  {
             return null;
         }
         CommandName1 commandName1 = null;
-        String userName = null;
-        String itemName = null;
-        float price = 0;
+        String userName=null;
 
 
         int userInputTOkenNo = 1;
@@ -94,12 +94,15 @@ public class ClientMarket extends UnicastRemoteObject  {
                     userName = tokenizer.nextToken();
                     break;
                 case 3:
-                    itemName = tokenizer.nextToken();
+                    try {
+                        price = Float.parseFloat(tokenizer.nextToken());
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+
                     break;
                 case 4:
-                    price = Float.parseFloat(tokenizer.nextToken());
-                    item =new Item( itemName,  price, userName) ;
-                    System.out.println(item);
+                    itemName = tokenizer.nextToken();
                     break;
                 default:
                     System.out.println("Illegal command1");
@@ -121,7 +124,7 @@ public class ClientMarket extends UnicastRemoteObject  {
                 try {
                     for (String a: marketObj.listAccounts()){
                         System.out.println(a);
-                }
+                    }
                 }catch (NullPointerException e){
                     e.printStackTrace();
                 }
@@ -147,27 +150,48 @@ public class ClientMarket extends UnicastRemoteObject  {
         switch (command2.getCommandName()) {
             case registerAccount:
                 clientName = username;
-
-                System.out.println("we are here");
-               marketObj.registerMarketClient(username);
-
-
+                try {
+                    marketObj.registerMarketClient(username,this);
+                } catch (RejectedException e) {
+                    account=bankobjc.getAccount(clientName);
+                    System.out.println(e.toString());
+                    return;
+                }
+                try {
+                    account=bankobjc.newAccount(username);
+                    System.out.println(account.toString());
+                } catch (RejectedException e) {
+                    e.printStackTrace();
+                }
                 return;
             case unRegisterAccount:
-
                 clientName = username;
                 marketObj.unregisterMarketClient(username);
+                bankobjc.deleteAccount(username);
+                clientName="";
+                return;
+
+            case deposit:
+                try {
+                    account.deposit(price);
+                } catch (RejectedException e) {
+                    e.printStackTrace();
+                }
                 return;
         }
         // all further require a client reference
         switch (command2.getCommandName()) {
             case listOfIem:
-
-                 for(Item i:marketObj.getListOfItemsInMarket() ){
-                     System.out.println(i);
-                 }
+                marketObj.getListOfItemsInMarket().forEach(System.out::println);
+                break;
             case newItem:
-                marketObj.addItemToSell(item);
+                System.out.println(marketObj.addItemToSell(itemName,price,clientName));
+                return;
+            case buy:
+               marketObj.buyItem(itemName,clientName);
+                return;
+            case wish:
+                marketObj.wishItemToBuy(itemName,price,clientName);
                 return;
             default:System.out.println("Illegal");
 
@@ -194,11 +218,6 @@ public class ClientMarket extends UnicastRemoteObject  {
         }
     }
 
-    private Item makeItem(String owner, String itemName, float price) throws RemoteException {
-
-        return new Item(itemName, price, owner);
-    }
-
     public static void main(String[] args)  {
 
         try {
@@ -211,4 +230,39 @@ public class ClientMarket extends UnicastRemoteObject  {
             e.printStackTrace();
         }
     }
+    @Override
+    public String getID(String id) throws RemoteException {
+        return clientName;
+    }
+
+    @Override
+    public void reciveMsg(String msg) {
+        System.out.println(msg);
+    }
+
+    @Override
+    public void notifySold(String msg) throws RemoteException {
+        DateFormat df = DateFormat.getDateTimeInstance();
+        String str = df.format(new Date());
+        String temp = str + " Your "+msg+" has been sold";
+        System.out.print(temp);
+    }
+
+    @Override
+    public void lackMoney() throws RemoteException {
+        DateFormat df = DateFormat.getDateTimeInstance();
+        String str = df.format(new Date());
+        String temp = str + " Your balance is not enough!: ";
+        System.out.print(temp);
+    }
+
+    @Override
+    public void notifyWish(String itemName,float price) throws RemoteException {
+        DateFormat df = DateFormat.getDateTimeInstance();
+        String str = df.format(new Date());
+        String temp = str + " An item meets your wish: ";
+
+        System.out.println(temp + itemName +" for: "+ price);
+    }
+
 }
